@@ -1,0 +1,301 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Business Manager</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f1f5f9;
+  color: #172554;
+}
+
+header {
+  background: #172554;
+  color: white;
+  padding: 24px 15px;
+  text-align: center;
+}
+
+header p { color: #bfdbfe; }
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 18px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px #00000010;
+}
+
+.number {
+  font-size: 30px;
+  font-weight: bold;
+  color: #2563eb;
+}
+
+input {
+  width: 100%;
+  padding: 13px;
+  margin: 7px 0 15px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  border: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  margin-top: 8px;
+}
+
+.shop {
+  border: 1px solid #e2e8f0;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.qr-box {
+  background: white;
+  padding: 12px;
+  margin-top: 12px;
+  display: inline-block;
+}
+
+.qr-box img {
+  display: block;
+}
+
+.hidden { display: none; }
+
+a { color: #2563eb; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>QR BUSINESS MANAGER</h1>
+  <p>Your Own Digital Business Card System</p>
+</header>
+
+<div class="container" id="dashboard">
+
+  <div class="card">
+    <h2>Total Shop Profiles</h2>
+    <div class="number" id="total">0</div>
+  </div>
+
+  <div class="card">
+    <h2>Add New Shop</h2>
+
+    <form id="shopForm">
+      <label>Shop Name</label>
+      <input id="name" placeholder="Enter shop name" required>
+
+      <label>WhatsApp Number</label>
+      <input id="whatsapp" placeholder="91XXXXXXXXXX">
+
+      <label>Instagram Link</label>
+      <input id="instagram" placeholder="Instagram URL">
+
+      <label>Google Reviews Link</label>
+      <input id="google" placeholder="Google Reviews URL">
+
+      <button type="submit">Add Shop</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>My Shops</h2>
+    <div id="shopList"></div>
+  </div>
+
+</div>
+
+<div class="container hidden" id="publicPage">
+  <div class="card">
+    <h2 id="publicName">Shop Name</h2>
+    <p id="publicId"></p>
+    <div id="publicLinks"></div>
+  </div>
+</div>
+
+<script>
+
+let shops = JSON.parse(
+  localStorage.getItem("myShops") || "[]"
+);
+
+function saveData() {
+  localStorage.setItem("myShops", JSON.stringify(shops));
+}
+
+function makeLink(label, url) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+  } catch {
+    return null;
+  }
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.textContent = label;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+
+function showShops() {
+  document.getElementById("total").textContent = shops.length;
+
+  const list = document.getElementById("shopList");
+  list.innerHTML = "";
+
+  if (shops.length === 0) {
+    list.textContent = "No shops added yet.";
+    return;
+  }
+
+  shops.forEach(shop => {
+    const item = document.createElement("div");
+    item.className = "shop";
+
+    const title = document.createElement("h3");
+    title.textContent = shop.name;
+
+    const id = document.createElement("p");
+    id.textContent = "Shop ID: " + shop.id;
+
+    const qrArea = document.createElement("div");
+    qrArea.id = "qr-" + shop.id;
+
+    const qrButton = document.createElement("button");
+    qrButton.textContent = "Generate QR Code";
+
+    qrButton.onclick = function() {
+      if (typeof QRCode === "undefined") {
+        alert("QR library load nahi hui. Internet check karo.");
+        return;
+      }
+
+      qrArea.innerHTML = "";
+
+      const pageURL = new URL(location.href);
+      pageURL.search = "";
+      pageURL.hash = "";
+      pageURL.searchParams.set("shop", shop.id);
+
+      new QRCode(qrArea, {
+        text: pageURL.href,
+        width: 200,
+        height: 200
+      });
+
+      const note = document.createElement("p");
+      note.textContent =
+        "Test QR: " + pageURL.href;
+
+      qrArea.appendChild(note);
+    };
+
+    item.append(title, id, qrButton, qrArea);
+    list.appendChild(item);
+  });
+}
+
+document.getElementById("shopForm")
+.addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  if (shops.length >= 100) {
+    alert("Maximum 100 shops allowed.");
+    return;
+  }
+
+  const shop = {
+    id: "SHOP-" + Date.now(),
+    name: document.getElementById("name").value.trim(),
+    whatsapp: document.getElementById("whatsapp").value.trim(),
+    instagram: document.getElementById("instagram").value.trim(),
+    google: document.getElementById("google").value.trim()
+  };
+
+  shops.push(shop);
+  saveData();
+  this.reset();
+  showShops();
+
+  alert("Shop added successfully!");
+});
+
+function showPublicShop(id) {
+  const shop = shops.find(item => item.id === id);
+
+  document.getElementById("dashboard").classList.add("hidden");
+  document.getElementById("publicPage").classList.remove("hidden");
+
+  if (!shop) {
+    document.getElementById("publicName").textContent =
+      "Shop not found";
+    return;
+  }
+
+  document.getElementById("publicName").textContent = shop.name;
+  document.getElementById("publicId").textContent =
+    "Shop ID: " + shop.id;
+
+  const links = document.getElementById("publicLinks");
+  links.innerHTML = "";
+
+  const phone = shop.whatsapp.replace(/\D/g, "");
+
+  if (phone) {
+    const wa = makeLink(
+      "Contact on WhatsApp",
+      "https://wa.me/" + phone
+    );
+    if (wa) links.append(wa, document.createElement("br"));
+  }
+
+  const insta = makeLink("Visit Instagram", shop.instagram);
+  if (insta) links.append(insta, document.createElement("br"));
+
+  const google = makeLink("Google Reviews", shop.google);
+  if (google) links.append(google);
+}
+
+const shopID = new URLSearchParams(location.search).get("shop");
+
+if (shopID) {
+  showPublicShop(shopID);
+} else {
+  showShops();
+}
+
+</script>
+
+</body>
+</html>
